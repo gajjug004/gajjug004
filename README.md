@@ -1,16 +1,19 @@
 <h1 align="center">Hi 👋, I'm Gajendra Nishad</h1>
-<h3 align="center">An Aspiring Software Developer from India</h3>
-<p align="justify">I'm looking for a challenging and exciting position where I can use my love of coding, technical expertise, and enthusiasm to contribute to cutting-edge software solutions. Currently persuing Master of Computer Application from Atal Bihari Vajpayee Vishwavidyalaya, Bilaspur CG and I'm excited to use my skills and passion for software development.
+<h3 align="center">A Software Developer from India</h3>
+<p align="justify">I am a passionate Software Developer with 1+ year of hands-on experience in building scalable and user-friendly applications. I specialize in Python-based technologies including Django and Flask, along with strong problem-solving skills in Data Structures and Algorithms.
+
+I enjoy transforming ideas into real-world solutions and continuously learning new technologies to stay updated in the fast-evolving tech industry. Currently, I am focused on improving my backend development skills and contributing to impactful team projects.
+
 </p>
 <p align="left"> <img src="https://komarev.com/ghpvc/?username=gajjug004&label=Profile%20views&color=0e75b6&style=flat" alt="gajjug004" /> </p>
 
-- 🔭 I’m currently a MCA Student recently in final Year.
-- 🌱 I’m currently learning Pyhton Frameworks Flask | Django | DSA.
-- 👯 I’m looking to collaborate on Team Projects.
-- 🤔 I’m looking for job opportunities in the field of Software Development.
-- 💬 I'm adaptive to new technologies.
+- 🔭 Working as a Software Developer on multiple real-world projects.
+- 🌱 Gaining hands-on experience in building scalable applications using Python and Django.
+- 👯 Collaborating with teams to design, develop, and deliver quality software solutions.
+- 🤔 Open to new opportunities that help me grow as a developer.
+- 💬 Adaptable to new technologies and passionate about continuous learning.
 - 😄 Pronouns: He/Him
-- ⚡ Fun fact: Ailurophile 🐱.
+- ⚡ Fun fact: Ailurophile 🐱 — coding is better with cats around!
 
 <p align="left"> <a href="https://twitter.com/andrinogn24" target="blank"><img src="https://img.shields.io/twitter/follow/andrinogn24?logo=twitter&style=for-the-badge" alt="andrinogn24" /></a> </p>
 
