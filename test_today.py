@@ -7,6 +7,7 @@ failure is invisible in a diff and obvious on the rendered profile, so assert it
 
 Run: python test_today.py
 """
+import hashlib
 import os
 import shutil
 import tempfile
@@ -65,6 +66,47 @@ def check(stats, label):
     print(f'  ok: {label}')
 
 
+def check_unreadable_repos_keep_their_cache():
+    """A repo the token cannot read must not be mistaken for an empty one and wiped.
+
+    Both cases arrive here as defaultBranchRef: null. Upstream catches the resulting
+    TypeError and zeroes the row, so a token lacking the `repo` scope silently erases every
+    private repo's line count -- it cost this cache 128k lines on its first CI run.
+    """
+    def node(name, is_empty, commits):
+        branch = None if commits is None else {'target': {'history': {'totalCount': commits}}}
+        return {'node': {'nameWithOwner': name, 'isEmpty': is_empty, 'defaultBranchRef': branch}}
+
+    edges = [
+        node('me/empty', True, None),       # genuinely empty -> zero it
+        node('me/unreadable', False, None),  # token cannot see it -> keep what we had
+        node('me/normal', False, 5),         # unchanged -> leave alone
+    ]
+    seeded = {'me/empty': '3 3 30 10', 'me/unreadable': '7 7 700 100', 'me/normal': '5 5 50 5'}
+
+    cwd = os.getcwd()
+    with tempfile.TemporaryDirectory() as tmp:
+        try:
+            os.chdir(tmp)
+            os.makedirs(today.CACHE_DIR)
+            with open(today.cache_filename(), 'w') as f:
+                for name, row in seeded.items():
+                    f.write(f'{hashlib.sha256(name.encode()).hexdigest()} {row}\n')
+
+            loc_add, loc_del, total, _ = today.cache_builder(edges, 0, False)
+            rows = dict(l.split(None, 1) for l in open(today.cache_filename()))
+        finally:
+            os.chdir(cwd)
+
+    unreadable = rows[hashlib.sha256(b'me/unreadable').hexdigest()].strip()
+    assert unreadable == '7 7 700 100', f'unreadable repo was clobbered: {unreadable!r}'
+    empty = rows[hashlib.sha256(b'me/empty').hexdigest()].strip()
+    assert empty == '0 0 0 0', f'empty repo should zero, got {empty!r}'
+    # 700 + 50 kept; the empty repo's stale 30 dropped. Upstream would report 50.
+    assert (loc_add, loc_del, total) == (750, 105, 645), f'got {(loc_add, loc_del, total)}'
+    print('  ok: unreadable repos keep their cached counts')
+
+
 def main():
     print('SVG layout invariants:')
 
@@ -88,6 +130,8 @@ def main():
            'org_data': '', 'star_data': 0, 'follower_data': 0, 'commit_data': 0,
            'pr_data': 0, 'issue_data': 0, 'loc_data': '0', 'loc_add': '0', 'loc_del': '0'},
           'zero values')
+
+    check_unreadable_repos_keep_their_cache()
 
     print('All layout checks passed.')
 

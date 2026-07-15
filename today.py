@@ -151,6 +151,7 @@ def loc_query(owner_affiliation, comment_size=0, force_cache=False, cursor=None,
             repositories(first: 60, after: $cursor, ownerAffiliations: $owner_affiliation) {
                 edges { node { ... on Repository {
                     nameWithOwner
+                    isEmpty
                     defaultBranchRef { target { ... on Commit { history { totalCount } } } }
                 } } }
                 pageInfo { endCursor hasNextPage }
@@ -191,21 +192,38 @@ def cache_builder(edges, comment_size, force_cache, loc_add=0, loc_del=0):
 
     cache_comment = data[:comment_size]
     data = data[comment_size:]
+    unreadable = []
     for index in range(len(edges)):
+        node = edges[index]['node']
         repo_hash, commit_count, *__ = data[index].split()
-        if repo_hash == hashlib.sha256(edges[index]['node']['nameWithOwner'].encode('utf-8')).hexdigest():
-            try:
-                if int(commit_count) != edges[index]['node']['defaultBranchRef']['target']['history']['totalCount']:
-                    owner, repo_name = edges[index]['node']['nameWithOwner'].split('/')
-                    loc = recursive_loc(owner, repo_name, data, cache_comment)
-                    data[index] = (repo_hash + ' '
-                                   + str(edges[index]['node']['defaultBranchRef']['target']['history']['totalCount'])
-                                   + ' ' + str(loc[2]) + ' ' + str(loc[0]) + ' ' + str(loc[1]) + '\n')
-            except TypeError:  # empty repository
+        if repo_hash != hashlib.sha256(node['nameWithOwner'].encode('utf-8')).hexdigest():
+            continue
+        branch = node['defaultBranchRef']
+        if branch is None:
+            # No branch means one of two very different things, and upstream conflates them
+            # by catching the resulting TypeError and zeroing the row. A repository the token
+            # cannot read looks exactly like an empty one from here, so a token missing the
+            # `repo` scope silently wipes every private repo's line count out of the cache.
+            # isEmpty tells them apart.
+            if node['isEmpty']:
                 data[index] = repo_hash + ' 0 0 0 0\n'
+            else:
+                unreadable.append(node['nameWithOwner'])  # keep the last known good row
+            continue
+        total = branch['target']['history']['totalCount']
+        if int(commit_count) != total:
+            owner, repo_name = node['nameWithOwner'].split('/')
+            loc = recursive_loc(owner, repo_name, data, cache_comment)
+            data[index] = (repo_hash + ' ' + str(total) + ' ' + str(loc[2])
+                           + ' ' + str(loc[0]) + ' ' + str(loc[1]) + '\n')
     with open(filename, 'w') as f:
         f.writelines(cache_comment)
         f.writelines(data)
+    if unreadable:
+        print(f'\nWARNING: {len(unreadable)} repositories are not empty but returned no branch,'
+              ' which means ACCESS_TOKEN cannot read them. Their cached values were kept, so'
+              ' the totals below may be stale. A classic token needs the `repo` scope to read'
+              ' private repositories:', ', '.join(unreadable), '\n')
     for line in data:
         loc = line.split()
         loc_add += int(loc[3])
