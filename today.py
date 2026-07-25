@@ -4,9 +4,13 @@ Based on Andrew6rant/Andrew6rant, with his personal bits (a hardcoded owner id, 
 of his deleted repositories) removed and two bugs fixed -- see svg_overwrite().
 
 Needs two repository secrets:
-  ACCESS_TOKEN  fine-grained PAT, all repositories
-                account:      read Followers, Starring, Watching
-                repository:   read Commit statuses, Contents, Issues, Metadata, Pull Requests
+  ACCESS_TOKEN  classic PAT, `repo` scope (plus `read:org` for private memberships, and
+                per-organization authorization for org-owned repositories). Not a
+                fine-grained PAT: those only reach repositories owned by the issuing
+                account, and this one collaborates on private repositories owned by others.
+                Under `public_repo` alone a private repository reports a null default
+                branch, which is indistinguishable from an empty one, so its line count
+                silently freezes at whatever the cache last held.
   USER_NAME     the GitHub login to report on
 """
 import datetime
@@ -37,6 +41,9 @@ RESERVE = {'age_data': 55, 'repo_data': 56, 'contrib_data': 50, 'org_data': 48,
 CACHE_DIR = 'cache'
 COMMENT_SIZE = 7  # header lines in the cache file, skipped when parsing
 
+RETRIES = 4
+RETRY_BACKOFF = 3  # seconds, doubled after each failed attempt
+
 
 def daily_readme(start):
     """'XX years, XX months, XX days' since start."""
@@ -51,33 +58,69 @@ def format_plural(unit):
     return 's' if unit != 1 else ''
 
 
+def graphql_post(query, variables):
+    """POST to the GraphQL API, retrying the transient failures.
+
+    GitHub answers 502 under load, and this script is a long run of queries that gets
+    heavier as the account grows, so a single 502 used to fail the whole build. Nothing
+    below 500 is retried: 401/403 are the token being wrong or the anti-abuse limit, and
+    hammering either only makes it worse.
+    """
+    delay = RETRY_BACKOFF
+    for attempt in range(RETRIES):
+        last = attempt == RETRIES - 1
+        try:
+            request = requests.post('https://api.github.com/graphql',
+                                    json={'query': query, 'variables': variables},
+                                    headers=HEADERS, timeout=30)
+        except requests.exceptions.RequestException as error:
+            if last:
+                raise
+            print('Request failed ({}), retrying in {}s'.format(error, delay))
+        else:
+            if request.status_code < 500 or last:
+                return request
+            print('GitHub returned {}, retrying in {}s'.format(request.status_code, delay))
+        time.sleep(delay)
+        delay *= 2
+
+
 def simple_request(func_name, query, variables):
-    request = requests.post('https://api.github.com/graphql',
-                            json={'query': query, 'variables': variables}, headers=HEADERS)
+    request = graphql_post(query, variables)
     if request.status_code == 200:
         return request
     raise Exception(func_name, ' has failed with a', request.status_code, request.text, QUERY_COUNT)
 
 
-def graph_repos_stars(count_type, owner_affiliation, cursor=None):
-    """Total repository or star count."""
+def graph_repos_stars(count_type, owner_affiliation):
+    """Total repository count, or total stars across those repositories.
+
+    Only asks for the field the caller wants. Counting repositories used to pull a
+    100-repository page and every repository's stargazer count along with it, which for the
+    contributed-to figure spans every affiliation -- 93 repositories, several of them
+    frappe's. That query drifted past GitHub's internal timeout as the account grew and
+    started coming back 502, failing the build. Asking for totalCount alone is a fraction
+    of the work and needs no page at all.
+    """
     query_count('graph_repos_stars')
+    # ponytail: stars are read from one 100-repository page, matching the previous
+    # behaviour. Paginate if this account ever owns more than 100 repositories.
+    page = 'first: 100, ' if count_type == 'stars' else ''
+    fields = ('edges { node { ... on Repository { stargazers { totalCount } } } }'
+              if count_type == 'stars' else 'totalCount')
     query = '''
-    query ($owner_affiliation: [RepositoryAffiliation], $login: String!, $cursor: String) {
+    query ($owner_affiliation: [RepositoryAffiliation], $login: String!) {
         user(login: $login) {
-            repositories(first: 100, after: $cursor, ownerAffiliations: $owner_affiliation) {
-                totalCount
-                edges { node { ... on Repository { nameWithOwner stargazers { totalCount } } } }
-                pageInfo { endCursor hasNextPage }
-            }
+            repositories(%sownerAffiliations: $owner_affiliation) { %s }
         }
-    }'''
-    variables = {'owner_affiliation': owner_affiliation, 'login': USER_NAME, 'cursor': cursor}
-    request = simple_request(graph_repos_stars.__name__, query, variables)
+    }''' % (page, fields)
+    variables = {'owner_affiliation': owner_affiliation, 'login': USER_NAME}
+    repositories = simple_request(
+        graph_repos_stars.__name__, query, variables).json()['data']['user']['repositories']
     if count_type == 'repos':
-        return request.json()['data']['user']['repositories']['totalCount']
+        return repositories['totalCount']
     elif count_type == 'stars':
-        return stars_counter(request.json()['data']['user']['repositories']['edges'])
+        return stars_counter(repositories['edges'])
 
 
 def recursive_loc(owner, repo_name, data, cache_comment,
@@ -108,8 +151,7 @@ def recursive_loc(owner, repo_name, data, cache_comment,
     variables = {'repo_name': repo_name, 'owner': owner, 'cursor': cursor,
                  'author_id': OWNER_ID['id']}
     # Not simple_request(): the cache has to be flushed to disk before raising.
-    request = requests.post('https://api.github.com/graphql',
-                            json={'query': query, 'variables': variables}, headers=HEADERS)
+    request = graphql_post(query, variables)
     if request.status_code == 200:
         if request.json()['data']['repository']['defaultBranchRef'] is not None:
             return loc_counter_one_repo(
@@ -342,7 +384,6 @@ def pr_issue_getter(username):
 
 
 def query_count(funct_id):
-    global QUERY_COUNT
     QUERY_COUNT[funct_id] += 1
 
 

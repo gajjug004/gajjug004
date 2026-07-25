@@ -107,6 +107,42 @@ def check_unreadable_repos_keep_their_cache():
     print('  ok: unreadable repos keep their cached counts')
 
 
+def check_transient_errors_are_retried():
+    """A 502 must not fail the build; a 403 must fail it immediately.
+
+    GitHub answers 502 under load and this script makes a long run of queries, so two
+    scheduled builds in a row died on a single bad response. Retrying 403 instead would
+    just dig deeper into the anti-abuse limit that caused it.
+    """
+    class Response:
+        def __init__(self, status_code):
+            self.status_code = status_code
+
+    calls, slept = [], []
+    real_post, real_sleep = today.requests.post, today.time.sleep
+    try:
+        today.time.sleep = slept.append
+
+        today.requests.post = lambda *a, **kw: (calls.append(1),
+                                                Response(502 if len(calls) < 3 else 200))[1]
+        assert today.graphql_post('q', {}).status_code == 200, '502 was not retried to success'
+        assert len(calls) == 3, f'expected 3 attempts, got {len(calls)}'
+        assert slept == [today.RETRY_BACKOFF, today.RETRY_BACKOFF * 2], f'bad backoff: {slept}'
+
+        calls.clear()
+        today.requests.post = lambda *a, **kw: (calls.append(1), Response(403))[1]
+        assert today.graphql_post('q', {}).status_code == 403, '403 should be returned as-is'
+        assert len(calls) == 1, f'403 must not be retried, made {len(calls)} attempts'
+
+        calls.clear()
+        today.requests.post = lambda *a, **kw: (calls.append(1), Response(502))[1]
+        assert today.graphql_post('q', {}).status_code == 502, 'last attempt should be returned'
+        assert len(calls) == today.RETRIES, f'expected {today.RETRIES} attempts, got {len(calls)}'
+    finally:
+        today.requests.post, today.time.sleep = real_post, real_sleep
+    print('  ok: transient 502s are retried, 403 is not')
+
+
 def main():
     print('SVG layout invariants:')
 
@@ -132,6 +168,7 @@ def main():
           'zero values')
 
     check_unreadable_repos_keep_their_cache()
+    check_transient_errors_are_retried()
 
     print('All layout checks passed.')
 
