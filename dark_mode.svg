@@ -63,7 +63,7 @@ text, tspan {white-space: pre;}
 <tspan x="784" y="50" class="cc">. </tspan>
 <tspan x="784" y="70" class="fg">- System </tspan><tspan class="cc">---------------------------------------------------------</tspan>
 <tspan x="784" y="90" class="cc">. </tspan><tspan class="key">OS</tspan><tspan class="cc">:</tspan><tspan class="cc"> ...................................................... </tspan><tspan class="value">Linux</tspan>
-<tspan x="784" y="110" class="cc">. </tspan><tspan class="key">Uptime</tspan><tspan class="cc">:</tspan><tspan class="cc" id="age_data_dots"> ............................. </tspan><tspan class="value" id="age_data">5 years, 7 months, 22 days</tspan>
+<tspan x="784" y="110" class="cc">. </tspan><tspan class="key">Uptime</tspan><tspan class="cc">:</tspan><tspan class="cc" id="age_data_dots"> ............................. </tspan><tspan class="value" id="age_data">5 years, 7 months, 23 days</tspan>
 <tspan x="784" y="130" class="cc">. </tspan><tspan class="key">Host</tspan><tspan class="cc">:</tspan><tspan class="cc"> ...................................................... </tspan><tspan class="value">BWH</tspan>
 <tspan x="784" y="150" class="cc">. </tspan><tspan class="key">Kernel</tspan><tspan class="cc">:</tspan><tspan class="cc"> ............................................... </tspan><tspan class="value">Engineer</tspan>
 <tspan x="784" y="170" class="cc">. </tspan><tspan class="key">IDE</tspan><tspan class="cc">:</tspan><tspan class="cc"> .................................................... </tspan><tspan class="value">Neovim</tspan>
@@ -87,7 +87,7 @@ text, tspan {white-space: pre;}
 <tspan x="784" y="530" class="cc">. </tspan>
 <tspan x="784" y="550" class="fg">- GitHub Stats </tspan><tspan class="cc">---------------------------------------------------</tspan>
 <tspan x="784" y="570" class="cc">. </tspan><tspan class="key">Repos</tspan><tspan class="cc">:</tspan><tspan class="cc" id="repo_data_dots"> ...................................................... </tspan><tspan class="value" id="repo_data">39</tspan>
-<tspan x="784" y="590" class="cc">. </tspan><tspan class="key">Contributed</tspan><tspan class="cc">:</tspan><tspan class="cc" id="contrib_data_dots"> ................................................ </tspan><tspan class="value" id="contrib_data">93</tspan>
+<tspan x="784" y="590" class="cc">. </tspan><tspan class="key">Contributed</tspan><tspan class="cc">:</tspan><tspan class="cc" id="contrib_data_dots"> ................................................ </tspan><tspan class="value" id="contrib_data">94</tspan>
 <tspan x="784" y="610" class="cc">. </tspan><tspan class="key">Organizations</tspan><tspan class="cc">:</tspan><tspan class="cc" id="org_data_dots"> ................................. </tspan><tspan class="value" id="org_data">frappe, bwhtech</tspan>
 <tspan x="784" y="630" class="cc">. </tspan><tspan class="key">Stars</tspan><tspan class="cc">:</tspan><tspan class="cc" id="star_data_dots"> ....................................................... </tspan><tspan class="value" id="star_data">2</tspan>
 <tspan x="784" y="650" class="cc">. </tspan><tspan class="key">Followers</tspan><tspan class="cc">:</tspan><tspan class="cc" id="follower_data_dots"> ................................................... </tspan><tspan class="value" id="follower_data">5</tspan>
